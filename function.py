@@ -25,13 +25,24 @@ def gbm_process(spot, drift, vol, n_days, n_paths = 1):
 		
 def garch_process(df_return, n_count, n_interval, lt_volatility = None, start_date = None, n_paths = 1):
 
-	''' df_return 은 0.01 = 1% 의 scale 로
+	''' variables :
+		df_return 은 0.01 = 1% 의 scale 로
+		n_count 는 generate 하고자 하는 향후 n일의 갯수
 		n_interval = 'day' / 'week' / 'month' 만
 		lt_volatililty 는 연율화된 표준편차 term으로 작성
 		start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
 
 		stochastic garch volatility process = 
-		V_t+1 = V_t + gamma * (long_term_V - V_t) * dt + alpha * sqrt(2) * V_t * N(0, dt**2)'''
+		V_t+1 = V_t + gamma * (long_term_V - V_t) * dt + alpha * sqrt(2) * V_t * N(0, dt**2)
+		
+		return :
+		model_param = res.params, # params of garch model
+        today_garch_vol = today_garch_annual, # today's garch volatility 
+        forecast_vol = forecast_garch_annual, # one path forecast garch volatility
+        forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
+        realized_return = cond_return, # one path's realized return over t ~ t+n_count
+        realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
+        realized_vol_avg = realized_return_vol.mean() # avg of all paths'''
 
 	interval_dict = dict(day = 252, week = 52, month = 12)
 
@@ -42,7 +53,7 @@ def garch_process(df_return, n_count, n_interval, lt_volatility = None, start_da
 	
 	# 1) parameter estimation using arch library and 100x scaled return data
 	
-	arch_return = arch.arch_model(100 * df_return, mean = 'Zero')
+	arch_return = arch.arch_model(100 * df_return, vol = 'garch', mean = 'Zero')
 
 	if start_date == None:
 		res = arch_return.fit()
@@ -117,6 +128,7 @@ def custom_cdf_function(daily_close_vol, target_x, start_x = None):
 		compute_p = pdf.integrate_box(-np.inf, target_x)
 	else:
 		compute_p = pdf.integrate_box(start_x, target_x)
+		
 	return compute_p
 
 # xs = np.linspace(min(daily_close_vol), max(daily_close_vol), 1000)
@@ -152,7 +164,7 @@ def reg_predict(train, test, predictors, target, model, n_estimators = 100, rand
 	
 	return pred, mse
 
-def reg_forecast(df_x, df_y, reg_model, n_days, n_paths = 1, test_size = None):
+def recursive_ml(df_x, df_y, reg_model, n_days, n_paths = 1, test_size = None):
 
 	''' 바로 전날 데이터까지 학습'''
 	''' predicted value 는 그래서 바로 다음날꺼 하나'''

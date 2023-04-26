@@ -119,3 +119,5 @@ aaa.to_csv("C:/Users/문희관/Desktop/week.csv")
 
 #%% 
 
+
+df_weekly.groupby()
