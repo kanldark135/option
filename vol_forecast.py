@@ -64,7 +64,7 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df_daily = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "daily_data", index_col = 0)
+df_daily = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "daily_data", index_col = 0)
 df_daily = df_daily.sort_index(ascending = True)
 
 class vol_forecast:
@@ -134,7 +134,6 @@ class vol_forecast:
         return self.fig_2
       
     def forecast_garch(self, iv, n_count, lt_volatility = None, start_date = None, n_paths = 1):
-
 
         ''' 
         Copy of func.garch_process, with=
