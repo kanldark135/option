@@ -87,42 +87,37 @@ class vol_forecast:
 
     def step_1(self):
 
-        # both ways
-        df_volscore = self.data.get('volscore')
-        self.today_volscore = df_volscore.iloc[-1]
-        self.volscore_p = func.custom_cdf_function(df_volscore, self.today_volscore)
-    
-        # up
-        df_volscore_up = self.data.get('volscore_up_only')
-        self.today_volscore_up = df_volscore_up.iloc[-1]
-        self.volscore_up_p = func.custom_cdf_function(df_volscore_up, self.today_volscore_up)
-        
-        #down
-        df_volscore_down = self.data.get('volscore_down_only')
-        self.today_volscore_down = df_volscore_down.iloc[-1]
-        self.volscore_down_p = func.custom_cdf_function(df_volscore_down, self.today_volscore_down)
-        
+        label = ['volscore', 'volscore_up_only', 'volscore_down_only']
+        color = ['g', 'r', 'b']
+        self.today_volscore = dict()
+        self.volscore_p = dict()
+
         self.fig_1, axes = plt.subplots(1, 3, figsize = (20, 10))
         bins = np.linspace(0, 1, 200)
 
-        axes[0].hist(df_volscore, density = True, bins = bins, color = 'g')
-        axes[0].axvline(x = self.today_volscore, color = 'black', linestyle = '-')
-        axes[1].hist(df_volscore_up, density = True, bins = bins, color = 'r')
-        axes[1].axvline(x = self.today_volscore_up, color = 'black', linestyle = '-')
-        axes[2].hist(df_volscore_up, density = True, bins = bins, color = 'b')
-        axes[2].axvline(x = self.today_volscore_down, color = 'black', linestyle = '-')
+        for i, label_i  in enumerate(label):
+                df_volscore = self.data.get(label_i)
+                today_volscore = df_volscore.iloc[-1]
+                volscore_prob = func.custom_cdf_function(df_volscore, today_volscore)
+                self.today_volscore[label_i] = today_volscore
+                self.volscore_p[label_i] = volscore_prob
+                axes[i].hist(df_volscore, density = True, bins = bins, color = color[i])
+                axes[i].axvline(x = today_volscore, color = 'black', linewidth = 2)
+                axes[i].set_title(label_i)
 
-        return self.volscore_p, self.volscore_up_p, self.volscore_down_p, self.fig_1
+        return self.today_volscore, self.volscore_p, self.fig_1
 
     def step_2(self, weight_days = 5):
         
         ''' weight_days : days of averaging'''
-
+        
+        label = ['volscore', 'volscore_up_only', 'volscore_down_only']
         weight = np.arange(1, weight_days + 1)
 
-        self.fig_2, axes = plt.subplots(1, len(self.label), figsize = (40, 5 * len(self.label)))
 
-        for i in enumerate(self.label):
+        self.fig_2, axes = plt.subplots(1, len(label), figsize = (40, 5 * len(label)))
+
+        for i in enumerate(label):
             
             trend = self.data.get(i[1]).tail(120)
             trend_wma = self.data.get(i[1]).tail(125).rolling(window = weight_days).apply(lambda x : np.dot(x, weight)/weight.sum())
@@ -133,7 +128,7 @@ class vol_forecast:
 
         return self.fig_2
       
-    def forecast_garch(self, iv, n_count, lt_volatility = None, start_date = None, n_paths = 1):
+    def forecast_garch(self, iv, n_count, lt_volatility = None, start_date = None, n_paths = 5000):
 
         ''' 
         Copy of func.garch_process, with=
