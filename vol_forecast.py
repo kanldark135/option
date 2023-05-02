@@ -87,6 +87,8 @@ class vol_forecast:
 
     def step_1(self):
 
+        ''' 0 : today_score, 1 : probability, 2 : figure'''
+
         label = ['volscore', 'volscore_up_only', 'volscore_down_only']
         color = ['g', 'r', 'b']
         self.today_volscore = dict()
@@ -109,8 +111,8 @@ class vol_forecast:
 
     def step_2(self, weight_days = 5):
         
-        ''' weight_days : days of averaging'''
-        
+        ''' figure'''
+
         label = ['volscore', 'volscore_up_only', 'volscore_down_only']
         weight = np.arange(1, weight_days + 1)
 
@@ -130,22 +132,14 @@ class vol_forecast:
       
     def forecast_garch(self, iv, n_count, lt_volatility = None, start_date = None, n_paths = 5000):
 
-        ''' 
-        Copy of func.garch_process, with=
-        variables :
-		df_return 은 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
-		n_count 는 generate 하고자 하는 향후 n일의 갯수
-		n_interval = 'day' / 'week' / 'month' 만
-		lt_volatililty 는 연율화된 표준편차 term으로 작성
-		start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
-
-        model_param = res.params, # params of garch model
-        today_garch_vol = today_garch_annual, # today's garch volatility 
-        forecast_vol = forecast_garch_annual, # one path forecast garch volatility
-        forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
-        realized_return = cond_return, # one path's realized return over t ~ t+n_count
-        realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
-        realized_vol_avg = realized_return_vol.mean() # avg of all paths'''
+        ''' variables :
+    iv : IV of a single option
+	df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
+	n_count : generate 하고자 하는 향후 n일의 갯수
+	n_interval : 'day' / 'week' / 'month' 만
+	lt_volatililty :  annualized 표준편차 term으로 작성
+	start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
+    '''
         
         return_label = ['close', 'tr']
 
@@ -154,21 +148,23 @@ class vol_forecast:
 
         self.fig_3, axes = plt.subplots(1, len(return_label), figsize = (20, 20))
 
-        for i in enumerate(return_label):
+        for i, label_i  in enumerate(return_label):
     
-            df_data = self.df[i[1]]
+            df_data = self.df[label_i]
             garch_vol = func.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
 
-            self.vol_result[i[0]] = garch_vol, func.custom_cdf_function(garch_vol, iv)
+            self.vol_result[label_i] = garch_vol
+            self.prob_result[label_i] = func.custom_cdf_function(garch_vol, iv)
             
             pdf = sstat.gaussian_kde(garch_vol)
             xs = np.linspace(min(garch_vol), max(garch_vol), 200)
             ys = pdf(xs)
 
-            axes[i[0]].plot(xs, ys)
-            axes[i[0]].axvline(x = iv, linestyle = '--', color = 'black')
+            axes[i].plot(xs, ys)
+            axes[i].axvline(x = iv, linestyle = '--', color = 'black')
+            axes[i].set_title(label_i)
             
-        return self.vol_result, self.fig_3
+        return self.vol_result, self.prob_result, self.fig_3
 
     def forecast_ml_reg(self):
         print("to be written")
@@ -176,14 +172,32 @@ class vol_forecast:
     def final_probability(self):
         print('to be written')
 
+a = vol_forecast(df_daily)
+current_status = a.step_1()
+current_trend = a.step_2()
+pred_garch = a.forecast_garch(0.12, 7)
 
-# %% 3. 향후 변동성 추정
+print(current_status)
+print(current_trend)
+print(pred_garch)
 
-# 이하 전부 variance 가 아닌 volatility term / 1년 연율화
+# %% 
 
-# 1) model-based prediction : GARCH(1,1)
+# Loading the dataset
 
-daily_close_garch = func.garch_process(df_daily['close'], 7, n_interval = 'day', n_paths = 5000)
+df_weekly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
+df_weekly = df_weekly.sort_index(ascending = True)
+
+b = vol_forecast(df_weekly, interval = "week")
+pred_b = b.forecast_garch(0.13, 7)
+
+df_monthly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "monthly_data", index_col = 0)
+df_monthly = df_monthly.sort_index(ascending = True)
+
+c = vol_forecast(df_monthly, interval = 'month')
+pred_c = c.forecast_garch(0.16, 30)
+
+#%% 
 
 # 2) ML based vol prediction 향후 추가
 
@@ -191,7 +205,7 @@ daily_close_garch = func.garch_process(df_daily['close'], 7, n_interval = 'day',
 # X : close vol, TR vol, volscore_total 3개 -> 평균 0 가정시 표준편차 = abs(수익률)
 # Y : 다음날 close vol (close_vol.shift(-1))
 
-predictors = ['close', 'TR', 'volscore_total']
+predictors = ['close', 'tr', 'volscore']
 df_x = df_daily[predictors]
 df_x.update(np.abs(df_x))
 df_y = np.abs(df_daily['close']).shift(-1)
@@ -215,8 +229,8 @@ rf_pred = rf_reg.predict(x_test)
 
 
 
-daily_vol_tr = np.sqrt(df_daily['TR'] ** 2) * np.sqrt(252)
-normal_tr = func.garch_process(df_daily['TR'], 7, n_interval = 'day', n_paths = 1000)
+# daily_vol_tr = np.sqrt(df_daily['TR'] ** 2) * np.sqrt(252)
+# normal_tr = func.garch_process(df_daily['TR'], 7, n_interval = 'day', n_paths = 1000)
 
 # %% 
 # weekly anaylsis

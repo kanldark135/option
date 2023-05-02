@@ -131,6 +131,3 @@ def generate_hedge_df(strike, hedge_interval, s, v, t, r, number, callput = 'cal
         df = df.assign(p = put_p(df.s, df.k, df.v, df.t, df.r), position = put_p(df.s, df.k, df.v, df.t, df.r) * number, delta = put_delta(df.s, df.k, df.v, df.t, df.r), position_delta = put_delta(df.s, df.k, df.v, df.t, df.r) * number)
  
     return df
-
-    
-
