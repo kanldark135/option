@@ -35,14 +35,14 @@ def garch_process(df_return, n_count, n_interval, lt_volatility = None, start_da
 		stochastic garch volatility process = 
 		V_t+1 = V_t + gamma * (long_term_V - V_t) * dt + alpha * sqrt(2) * V_t * N(0, dt**2)
 		
-		return :
-		model_param = res.params, # params of garch model
-        today_garch_vol = today_garch_annual, # today's garch volatility 
-        forecast_vol = forecast_garch_annual, # one path forecast garch volatility
-        forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
-        realized_return = cond_return, # one path's realized return over t ~ t+n_count
-        realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
-        realized_vol_avg = realized_return_vol.mean() # avg of all paths'''
+		return:
+        0: model_param = res.params, # params of garch model
+        1: today_garch_vol = today_garch_annual, # today's garch volatility 
+        2: forecast_vol = forecast_garch_annual, # one path forecast garch volatility
+        3: forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
+        4: realized_return = cond_return, # one path's realized return over t ~ t+n_count
+        5: realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
+        6: realized_vol_avg = realized_return_vol.mean() # avg of all paths'''
 
 	interval_dict = dict(day = 252, week = 52, month = 12)
 
