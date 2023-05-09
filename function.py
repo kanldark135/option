@@ -196,16 +196,6 @@ def recursive_ml(df_x, df_y, reg_model, n_days, n_paths = 1, test_size = None):
 		ret.append(tomorrow_return)
 		vol.append(np.abs(tomorrow_return))
 
-		
-
-	
-	
-	
-
-	
-
-	
-
 
 
 
