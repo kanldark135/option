@@ -17,6 +17,8 @@ from sklearn.linear_model import LinearRegression
 from xgboost import XGBRegressor
 from sklearn.ensemble import RandomForestRegressor
 
+
+
 '''
 변동성 추정 Process
 
@@ -172,14 +174,17 @@ class vol_forecast:
     def final_probability(self):
         print('to be written')
 
-a = vol_forecast(df_daily)
-current_status = a.step_1()
-current_trend = a.step_2()
-pred_garch = a.forecast_garch(0.12, 7)
+#%% 
+
+daily_analysis = vol_forecast(df_daily)
+current_status = daily_analysis.step_1()
+current_trend = daily_analysis.step_2()
+pred_garch = daily_analysis.forecast_garch(0.13, 7)
 
 print(current_status)
 print(current_trend)
 print(pred_garch)
+
 
 # %% 
 
@@ -188,14 +193,14 @@ print(pred_garch)
 df_weekly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
 df_weekly = df_weekly.sort_index(ascending = True)
 
-b = vol_forecast(df_weekly, interval = "week")
-pred_b = b.forecast_garch(0.13, 7)
+one_week_analysis = vol_forecast(df_weekly, interval = "week")
+pred_b = one_week_analysis.forecast_garch(0.13, 2)
 
 df_monthly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "monthly_data", index_col = 0)
 df_monthly = df_monthly.sort_index(ascending = True)
 
-c = vol_forecast(df_monthly, interval = 'month')
-pred_c = c.forecast_garch(0.16, 30)
+one_month_analysis = vol_forecast(df_monthly, interval = 'month')
+pred_c = one_month_analysis.forecast_garch(0.16, 2)
 
 #%% 
 
