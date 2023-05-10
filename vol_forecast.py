@@ -8,6 +8,7 @@ import scipy.optimize as sopt
 import scipy.stats as sstat
 import arch
 import datetime as dt
+import preprocessing
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -16,8 +17,6 @@ from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
 from xgboost import XGBRegressor
 from sklearn.ensemble import RandomForestRegressor
-
-
 
 '''
 변동성 추정 Process
@@ -66,12 +65,12 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df_daily = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "daily_data", index_col = 0)
-df_daily = df_daily.sort_index(ascending = True)
+df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
+df_daily.index.name = 'date'
+df_daily.columns = ['open','high','low','close']
 
 class vol_forecast:
-
-    label = ['close', 'tr', 'volscore', 'volscore_up_only', "volscore_down_only"]
     
     def __init__(self, df, interval = 'day'):
 
