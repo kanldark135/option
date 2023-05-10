@@ -66,7 +66,7 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df_daily = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "daily_data", index_col = 0)
+df_daily = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "daily_data", index_col = 0)
 df_daily = df_daily.sort_index(ascending = True)
 
 class vol_forecast:
@@ -190,13 +190,13 @@ print(pred_garch)
 
 # Loading the dataset
 
-df_weekly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
+df_weekly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
 df_weekly = df_weekly.sort_index(ascending = True)
 
 one_week_analysis = vol_forecast(df_weekly, interval = "week")
 pred_b = one_week_analysis.forecast_garch(0.13, 2)
 
-df_monthly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "monthly_data", index_col = 0)
+df_monthly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "monthly_data", index_col = 0)
 df_monthly = df_monthly.sort_index(ascending = True)
 
 one_month_analysis = vol_forecast(df_monthly, interval = 'month')
