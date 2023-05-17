@@ -88,7 +88,6 @@ def garch_process(df_return, n_count, n_interval, lt_volatility = None, start_da
 
 	cond_var_2 = np.zeros((n_count, n_paths))
 	cond_var_2[0] = today_predicted_var
-
 	for i in range(1, n_count): ### 1) deterministic garch model 안에서 stochastic 주가 process + 전날에 추정된 garch_predicted vol 사용
 
 		tomorrow_return = np.random.normal(0, np.sqrt(cond_var[i-1]))
