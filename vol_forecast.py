@@ -1,14 +1,14 @@
 #%%
 
 import numpy as np
-import function as func
+import function as myfunc
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.optimize as sopt
 import scipy.stats as sstat
 import arch
 import datetime as dt
-import preprocessing
+import preprocessing as pre
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -70,9 +70,101 @@ df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
 
-class vol_forecast:
+# %% vol function
+
+class vol_forecast_2:
+
+    ''' df = raw daily return table from outer sources in OHLC format / processed by inner pre.return_function
+        interval = return horizon
+        start_date = (optional) start_date'''
+
+    def __init__(self, df, interval, start_date = None):
+
+        if start_date != None:
+            start_date = pd.to_datetime(start_date)
+            self.df = df.sort_index(ascending = True).loc[df.index > start_date, :]
+        else:
+            self.df = df.sort_index(ascending = True)
+        
+        self.interval = interval
+        annualizing_factor = 252 / interval
+
+        ret_function = pre.return_function(self.df)
+        self.ret_total = ret_function.total_return(interval)
+        self.volscore_total = (self.ret_total.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_total.pipe(pre.volscore, price = 'tr', n = annualizing_factor)) / 2
+        self.ret_up = ret_function.plus_return(interval)
+        self.volscore_up = (self.ret_up.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_up.pipe(pre.volscore, price = 'high', n = annualizing_factor)) / 2
+        self.ret_down = ret_function.minus_return(interval)
+        self.volscore_down = (self.ret_down.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_down.pipe(pre.volscore, price = 'low', n = annualizing_factor)) / 2
+
+        self.dict = dict(total = self.volscore_total, up = self.volscore_up, down = self.volscore_down)
     
-    def __init__(self, df, interval = 'day'):
+    def current_status(self, avg_days = 5):
+
+        color = ['g', 'r', 'b']
+
+        current_vol = dict(total = self.volscore_total[-1], up = self.volscore_up[-1], down = self.volscore_down[-1])
+        current_p = dict()
+
+        self.fig_1, axes = plt.subplots(2, 3, figsize = (20, 20))
+        bins = np.linspace(0, 1, 200)
+
+        for i, keys in enumerate(self.dict.keys()):
+
+            df = self.dict.get(keys)
+            prob = myfunc.custom_cdf_function(df, current_vol.get(keys))
+            current_p[keys] = prob
+
+            trend = df.tail(120)
+            trend_wm = df.tail(125).rolling(5).apply(lambda x : np.dot(x, np.arange(1, avg_days + 1)) / sum(np.arange(1, avg_days + 1)))
+            
+            axes[0, i].hist(df, density = True, bins = bins, color = color[i])
+            axes[0, i].axvline(current_vol.get(keys), color = 'black')
+            axes[0, i].set_title(keys)
+
+            axes[1, i].plot(trend, label = 'trend')
+            axes[1, i].plot(trend_wm, label = 'weighted_trend')
+            axes[1, i].legend()
+
+        return current_vol, current_p, self.fig_1
+    
+    def sim_garch(self, iv, n_count, start_date, n_paths = 5000):
+        ''' variables :
+    iv : IV of a single option
+	df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
+	n_count : generate 하고자 하는 향후 n일의 갯수
+	n_interval : 'day' / 'week' / 'month' 만
+	lt_volatililty :  annualized 표준편차 term으로 작성
+	start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
+    '''
+        self.vol_result = dict()
+        self.prob_result = dict()
+
+        self.fig_3, axes = plt.subplots(1, len(return_label), figsize = (20, 20))
+
+        for i, label_i  in enumerate(return_label):
+
+            df_data = self.df[label_i]
+            garch_vol = myfunc.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
+
+            self.vol_result[label_i] = garch_vol
+            self.prob_result[label_i] = myfunc.custom_cdf_function(garch_vol, iv)
+            
+            pdf = sstat.gaussian_kde(garch_vol)
+            xs = np.linspace(min(garch_vol), max(garch_vol), 200)
+            ys = pdf(xs)
+
+            axes[i].plot(xs, ys)
+            axes[i].axvline(x = iv, linestyle = '--', color = 'black')
+            axes[i].set_title(label_i)
+            
+        return self.vol_result, self.prob_result, self.fig_3
+    
+#%% 
+
+class vol_forecast:
+
+    def __init__(self, df, interval):
 
         self.df = df
         self.df = self.df.sort_index(ascending = True)
@@ -81,10 +173,6 @@ class vol_forecast:
             self.interval = interval
         else:
             raise ValueError("Input must be day/week/month")
-
-        self.data = dict()
-        for i in vol_forecast.label:
-            self.data[i] = df[i]
 
     def step_1(self):
 
@@ -101,7 +189,7 @@ class vol_forecast:
         for i, label_i  in enumerate(label):
                 df_volscore = self.data.get(label_i)
                 today_volscore = df_volscore.iloc[-1]
-                volscore_prob = func.custom_cdf_function(df_volscore, today_volscore)
+                volscore_prob = myfunc.custom_cdf_function(df_volscore, today_volscore)
                 self.today_volscore[label_i] = today_volscore
                 self.volscore_p[label_i] = volscore_prob
                 axes[i].hist(df_volscore, density = True, bins = bins, color = color[i])
@@ -131,41 +219,7 @@ class vol_forecast:
 
         return self.fig_2
       
-    def forecast_garch(self, iv, n_count, lt_volatility = None, start_date = None, n_paths = 5000):
 
-        ''' variables :
-    iv : IV of a single option
-	df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
-	n_count : generate 하고자 하는 향후 n일의 갯수
-	n_interval : 'day' / 'week' / 'month' 만
-	lt_volatililty :  annualized 표준편차 term으로 작성
-	start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
-    '''
-        
-        return_label = ['close', 'tr']
-
-        self.vol_result = dict()
-        self.prob_result = dict()
-
-        self.fig_3, axes = plt.subplots(1, len(return_label), figsize = (20, 20))
-
-        for i, label_i  in enumerate(return_label):
-    
-            df_data = self.df[label_i]
-            garch_vol = func.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
-
-            self.vol_result[label_i] = garch_vol
-            self.prob_result[label_i] = func.custom_cdf_function(garch_vol, iv)
-            
-            pdf = sstat.gaussian_kde(garch_vol)
-            xs = np.linspace(min(garch_vol), max(garch_vol), 200)
-            ys = pdf(xs)
-
-            axes[i].plot(xs, ys)
-            axes[i].axvline(x = iv, linestyle = '--', color = 'black')
-            axes[i].set_title(label_i)
-            
-        return self.vol_result, self.prob_result, self.fig_3
 
     def forecast_ml_reg(self):
         print("to be written")
@@ -183,23 +237,6 @@ pred_garch = daily_analysis.forecast_garch(0.13, 7)
 print(current_status)
 print(current_trend)
 print(pred_garch)
-
-
-# %% 
-
-# Loading the dataset
-
-df_weekly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
-df_weekly = df_weekly.sort_index(ascending = True)
-
-one_week_analysis = vol_forecast(df_weekly, interval = "week")
-pred_b = one_week_analysis.forecast_garch(0.13, 2)
-
-df_monthly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "monthly_data", index_col = 0)
-df_monthly = df_monthly.sort_index(ascending = True)
-
-one_month_analysis = vol_forecast(df_monthly, interval = 'month')
-pred_c = one_month_analysis.forecast_garch(0.16, 2)
 
 #%% 
 
