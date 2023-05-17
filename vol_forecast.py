@@ -65,10 +65,13 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+df = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
 df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
+
+df_vkospi = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
+df_vkospi = df_vkospi.sort_index(ascending = True)
 
 # %% vol function
 
@@ -128,37 +131,55 @@ class vol_forecast_2:
 
         return current_vol, current_p, self.fig_1
     
-    def sim_garch(self, iv, n_count, start_date, n_paths = 5000):
-        ''' variables :
-    iv : IV of a single option
-	df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
-	n_count : generate 하고자 하는 향후 n일의 갯수
-	n_interval : 'day' / 'week' / 'month' 만
-	lt_volatililty :  annualized 표준편차 term으로 작성
-	start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
-    '''
-        self.vol_result = dict()
-        self.prob_result = dict()
+    def sim_garch(self, iv, n_count, start_date = 0):
 
-        self.fig_3, axes = plt.subplots(1, len(return_label), figsize = (20, 20))
+        start_date = pd.to_datetime(start_date)
 
-        for i, label_i  in enumerate(return_label):
-
-            df_data = self.df[label_i]
-            garch_vol = myfunc.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
-
-            self.vol_result[label_i] = garch_vol
-            self.prob_result[label_i] = myfunc.custom_cdf_function(garch_vol, iv)
+        model = arch.arch_model(100 * self.ret_total, vol = 'garch', mean = 'zero')
+        fit = model.fit(start_obs = start_date, reindex = False, disp = 'off')
+        pred = fit.forecast(horizon = 5)
             
-            pdf = sstat.gaussian_kde(garch_vol)
-            xs = np.linspace(min(garch_vol), max(garch_vol), 200)
-            ys = pdf(xs)
+        return self.pred_vol, self.pred_prob, self.fig_3
+    
+    # def monte_carlo(self, iv, n_count, start_date = 0):
+    #     ''' variables :
+    # iv : IV of a single option
+	# df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
+	# n_count : generate 하고자 하는 향후 n일의 갯수
+	# n_interval : 'day' / 'week' / 'month' 만
+	# lt_volatililty :  annualized 표준편차 term으로 작성
+	# start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
+    # '''
+        
+    #     start_date = pd.to_datetime(start_date)
 
-            axes[i].plot(xs, ys)
-            axes[i].axvline(x = iv, linestyle = '--', color = 'black')
-            axes[i].set_title(label_i)
+    #     self.pred_vol = dict()
+    #     self.pred_prob = dict()
+
+    #     model = arch.arch_model(100 * self.ret_total, vol = 'garch', mean = 'zero')
+    #     fit = model.fit(start_obs = start_date, reindex = False, disp = 'off')
+    #     pred = fit.forecast(horizon = 5)
+        
+
+    #     self.fig_3, axes = plt.subplots(1, len(), figsize = (20, 20))
+
+    #     for i, label_i  in enumerate():
+
+    #         df_data = self.df[label_i]
+    #         garch_vol = myfunc.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
+
+    #         self.pred_vol[label_i] = garch_vol
+    #         self.pred_prob[label_i] = myfunc.custom_cdf_function(garch_vol, iv)
             
-        return self.vol_result, self.prob_result, self.fig_3
+    #         pdf = sstat.gaussian_kde(garch_vol)
+    #         xs = np.linspace(min(garch_vol), max(garch_vol), 200)
+    #         ys = pdf(xs)
+
+    #         axes[i].plot(xs, ys)
+    #         axes[i].axvline(x = iv, linestyle = '--', color = 'black')
+    #         axes[i].set_title(label_i)
+            
+    #     return self.pred_vol, self.pred_prob, self.fig_3
     
 #%% 
 
