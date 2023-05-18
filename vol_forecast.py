@@ -65,27 +65,27 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
 df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
 
-df_vkospi = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
+df_vkospi = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
 df_vkospi = df_vkospi.sort_index(ascending = True)
 
 # %% vol function
 
-class vol_forecast_2:
+class vol_forecast:
 
-    ''' df = raw daily return table from outer sources in OHLC format / processed by inner pre.return_function
+    ''' df = raw daily price table from outer sources in OHLC format / processed by inner pre.return_function
         interval = return horizon
         start_date = (optional) start_date'''
 
-    def __init__(self, df, interval, start_date = None):
+    def __init__(self, df, interval, start_date = 0):
 
-        if start_date != None:
-            start_date = pd.to_datetime(start_date)
-            self.df = df.sort_index(ascending = True).loc[df.index > start_date, :]
+        self.start_date = pd.to_datetime(start_date)
+        if start_date != 0:
+            self.df = df.sort_index(ascending = True).loc[df.index > self.start_date, :]
         else:
             self.df = df.sort_index(ascending = True)
         
@@ -102,7 +102,19 @@ class vol_forecast_2:
 
         self.dict = dict(total = self.volscore_total, up = self.volscore_up, down = self.volscore_down)
     
-    def current_status(self, avg_days = 5):
+    def iv(self, df_vkospi):
+        
+        current = df_vkospi.iat[-1, 0]
+        
+        fig, ax = plt.subplots(1, 1)
+        ax.hist(df_vkospi, bins = np.linspace(0, 100, 500))
+        ax.axvline(current, linewidth = 2, color = 'b')
+        ax.text(5, 5, str(current))
+        p = myfunc.custom_cdf_function(df_vkospi['종가'], current)
+
+        return fig, p
+
+    def status(self, avg_days = 5):
 
         color = ['g', 'r', 'b']
 
@@ -131,176 +143,88 @@ class vol_forecast_2:
 
         return current_vol, current_p, self.fig_1
     
-    def sim_garch(self, iv, n_count, start_date = 0):
-
-        start_date = pd.to_datetime(start_date)
-
-        model = arch.arch_model(100 * self.ret_total, vol = 'garch', mean = 'zero')
-        fit = model.fit(start_obs = start_date, reindex = False, disp = 'off')
-        pred = fit.forecast(horizon = 5)
-            
-        return self.pred_vol, self.pred_prob, self.fig_3
-    
-    # def monte_carlo(self, iv, n_count, start_date = 0):
-    #     ''' variables :
-    # iv : IV of a single option
-	# df_return : 0.01 = 1% 의 scale 로. "일단위 return" scale 의 데이터만 받음
-	# n_count : generate 하고자 하는 향후 n일의 갯수
-	# n_interval : 'day' / 'week' / 'month' 만
-	# lt_volatililty :  annualized 표준편차 term으로 작성
-	# start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
-    # '''
+    def sim_garch(self, n_days = 6):
         
-    #     start_date = pd.to_datetime(start_date)
+        fig, ax = plt.subplots(1, 1)
 
-    #     self.pred_vol = dict()
-    #     self.pred_prob = dict()
-
-    #     model = arch.arch_model(100 * self.ret_total, vol = 'garch', mean = 'zero')
-    #     fit = model.fit(start_obs = start_date, reindex = False, disp = 'off')
-    #     pred = fit.forecast(horizon = 5)
-        
-
-    #     self.fig_3, axes = plt.subplots(1, len(), figsize = (20, 20))
-
-    #     for i, label_i  in enumerate():
-
-    #         df_data = self.df[label_i]
-    #         garch_vol = myfunc.garch_process(df_data, n_count, n_interval = self.interval, lt_volatility = lt_volatility, start_date = start_date, n_paths = n_paths)['realized_vol']
-
-    #         self.pred_vol[label_i] = garch_vol
-    #         self.pred_prob[label_i] = myfunc.custom_cdf_function(garch_vol, iv)
-            
-    #         pdf = sstat.gaussian_kde(garch_vol)
-    #         xs = np.linspace(min(garch_vol), max(garch_vol), 200)
-    #         ys = pdf(xs)
-
-    #         axes[i].plot(xs, ys)
-    #         axes[i].axvline(x = iv, linestyle = '--', color = 'black')
-    #         axes[i].set_title(label_i)
-            
-    #     return self.pred_vol, self.pred_prob, self.fig_3
-    
-#%% 
-
-class vol_forecast:
-
-    def __init__(self, df, interval):
-
-        self.df = df
-        self.df = self.df.sort_index(ascending = True)
-
-        if interval in ['day' , 'week', 'month']:
-            self.interval = interval
+        if self.interval != 1:
+            raise ValueError('interval is not 1 day')
         else:
-            raise ValueError("Input must be day/week/month")
-
-    def step_1(self):
-
-        ''' 0 : today_score, 1 : probability, 2 : figure'''
-
-        label = ['volscore', 'volscore_up_only', 'volscore_down_only']
-        color = ['g', 'r', 'b']
-        self.today_volscore = dict()
-        self.volscore_p = dict()
-
-        self.fig_1, axes = plt.subplots(1, 3, figsize = (20, 10))
-        bins = np.linspace(0, 1, 200)
-
-        for i, label_i  in enumerate(label):
-                df_volscore = self.data.get(label_i)
-                today_volscore = df_volscore.iloc[-1]
-                volscore_prob = myfunc.custom_cdf_function(df_volscore, today_volscore)
-                self.today_volscore[label_i] = today_volscore
-                self.volscore_p[label_i] = volscore_prob
-                axes[i].hist(df_volscore, density = True, bins = bins, color = color[i])
-                axes[i].axvline(x = today_volscore, color = 'black', linewidth = 2)
-                axes[i].set_title(label_i)
-
-        return self.today_volscore, self.volscore_p, self.fig_1
-
-    def step_2(self, weight_days = 5):
+            dummy = myfunc.mc_garch(self.ret_total['close'], n_days, start_date = self.start_date)
         
-        ''' figure'''
+        ax.hist(dummy[0], bins = np.linspace(0, 0.5, 300))
+        result = dummy[0].mean()
+        ax.text(2, 2, result)
 
-        label = ['volscore', 'volscore_up_only', 'volscore_down_only']
-        weight = np.arange(1, weight_days + 1)
-
-
-        self.fig_2, axes = plt.subplots(1, len(label), figsize = (40, 5 * len(label)))
-
-        for i in enumerate(label):
-            
-            trend = self.data.get(i[1]).tail(120)
-            trend_wma = self.data.get(i[1]).tail(125).rolling(window = weight_days).apply(lambda x : np.dot(x, weight)/weight.sum())
-            axes[i[0]].plot(trend, label = 'trend')
-            axes[i[0]].plot(trend_wma, label = 'weighted_trend')
-            axes[i[0]].set_title(i[1])
-            axes[i[0]].legend()
-
-        return self.fig_2
-      
-
-
+        return fig, result
+    
     def forecast_ml_reg(self):
         print("to be written")
 
     def final_probability(self):
         print('to be written')
+    
+
+if __name__ == "__main__":
+    
+    a = vol_forecast(df_daily, 1)
+    a.status()
+    a.iv(df_vkospi)
+    a.sim_garch()
+
+    b = vol_forecast(df_daily, 5)
+    c = vol_forecast(df_daily, 10)
+    d = vol_forecast(df_daily, 20)
+    e = vol_forecast(df_daily, 30)
+    f = vol_forecast(df_daily, 40)
+
+    table_volscore = pd.DataFrame([a.status()[0], b.status()[0], c.status()[0], d.status()[0], e.status()[0], f.status()[0]], index = [1, 5, 10, 20, 30, 40])
+    table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[1], e.status()[1], f.status()[1]], index = [1, 5, 10, 20, 30, 40])
+
+    
 
 #%% 
 
-daily_analysis = vol_forecast(df_daily)
-current_status = daily_analysis.step_1()
-current_trend = daily_analysis.step_2()
-pred_garch = daily_analysis.forecast_garch(0.13, 7)
+# # 2) ML based vol prediction 향후 추가
 
-print(current_status)
-print(current_trend)
-print(pred_garch)
+# # 전처리
+# # X : close vol, TR vol, volscore_total 3개 -> 평균 0 가정시 표준편차 = abs(수익률)
+# # Y : 다음날 close vol (close_vol.shift(-1))
 
-#%% 
+# predictors = ['close', 'tr', 'volscore']
+# df_x = df_daily[predictors]
+# df_x.update(np.abs(df_x))
+# df_y = np.abs(df_daily['close']).shift(-1)
 
-# 2) ML based vol prediction 향후 추가
+# x_train, x_test, y_train, y_test = train_test_split(df_x, df_y, test_size = 0.01, shuffle = False)
 
-# 전처리
-# X : close vol, TR vol, volscore_total 3개 -> 평균 0 가정시 표준편차 = abs(수익률)
-# Y : 다음날 close vol (close_vol.shift(-1))
+# lin_reg = LinearRegression()
+# lin_reg.fit(x_train, y_train)
+# lin_pred = lin_reg.predict(x_test)
 
-predictors = ['close', 'tr', 'volscore']
-df_x = df_daily[predictors]
-df_x.update(np.abs(df_x))
-df_y = np.abs(df_daily['close']).shift(-1)
+# xgb_reg = XGBRegressor()
+# xgb_reg.fit(x_train, y_train)
+# xgb_pred = xgb_reg.predict(x_test)
 
-x_train, x_test, y_train, y_test = train_test_split(df_x, df_y, test_size = 0.01, shuffle = False)
-
-lin_reg = LinearRegression()
-lin_reg.fit(x_train, y_train)
-lin_pred = lin_reg.predict(x_test)
-
-xgb_reg = XGBRegressor()
-xgb_reg.fit(x_train, y_train)
-xgb_pred = xgb_reg.predict(x_test)
-
-rf_reg = RandomForestRegressor()
-rf_reg.fit(x_train, y_train)
-rf_pred = rf_reg.predict(x_test)
+# rf_reg = RandomForestRegressor()
+# rf_reg.fit(x_train, y_train)
+# rf_pred = rf_reg.predict(x_test)
 
 
-#%%    4. 추정된 변동성 분포에서 IV 위치 파악
+# #%%    4. 추정된 변동성 분포에서 IV 위치 파악
 
 
 
-# daily_vol_tr = np.sqrt(df_daily['TR'] ** 2) * np.sqrt(252)
-# normal_tr = func.garch_process(df_daily['TR'], 7, n_interval = 'day', n_paths = 1000)
+# # daily_vol_tr = np.sqrt(df_daily['TR'] ** 2) * np.sqrt(252)
+# # normal_tr = func.garch_process(df_daily['TR'], 7, n_interval = 'day', n_paths = 1000)
 
-# %% 
-# weekly anaylsis
+# # %% 
+# # weekly anaylsis
 
-# df_weekly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
-# df_weekly = df_weekly.sort_index(ascending = True)
+# # df_weekly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
+# # df_weekly = df_weekly.sort_index(ascending = True)
 
-# weekly_close = func.garch_process(df_weekly['close'], 2, n_interval = 'week', n_paths = 1000)
-# weekly_tr = func.garch_process(df_weekly['TR'], 2, n_interval = 'week', n_paths = 1000)
+# # weekly_close = func.garch_process(df_weekly['close'], 2, n_interval = 'week', n_paths = 1000)
+# # weekly_tr = func.garch_process(df_weekly['TR'], 2, n_interval = 'week', n_paths = 1000)
 
 
