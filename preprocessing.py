@@ -14,6 +14,8 @@ df_daily.columns = ['open','high','low','close']
 
 class return_function:
 
+    ''' feed any price dataset with OHLC format as df_price'''
+
     def __init__(self, df_price):
 
         self.df_price = df_price
@@ -89,7 +91,7 @@ def volscore(df_return, price = 'close', n = 252): ## 상기 close/ high / low /
 
         # garch derivation
         model = arch.arch_model(df_return[price] * 100, vol = 'garch', mean = 'zero')
-        fit = model.fit()
+        fit = model.fit(disp = "off")
         garch = np.sqrt(n) * fit.conditional_volatility / 100
 
         result = (daily + ma5 + ma20 + wma_5 + wma_20 + ewma + garch) / 7

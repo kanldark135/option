@@ -22,100 +22,36 @@ def gbm_process(spot, drift, vol, n_days, n_paths = 1):
 	price_path = spot * growth_path
 		
 	return price_path
-		
-def garch_process(df_return, n_count, n_interval, lt_volatility = None, start_date = None, n_paths = 1):
 
-	''' variables :
-		df_return 은 0.01 = 1% 의 scale 로
-		n_count 는 generate 하고자 하는 향후 n일의 갯수
-		n_interval = 'day' / 'week' / 'month' 만
-		lt_volatililty 는 연율화된 표준편차 term으로 작성
-		start_date : start_date 의 수익률부터 garch 모형의 표본으로 feed, 없으면 전부
+def mc_garch(daily_return, n_days, start_date = 0, n_paths = 10000):
 
-		stochastic garch volatility process = 
-		V_t+1 = V_t + gamma * (long_term_V - V_t) * dt + alpha * sqrt(2) * V_t * N(0, dt**2)
-		
-		return:
-        0: model_param = res.params, # params of garch model
-        1: today_garch_vol = today_garch_annual, # today's garch volatility 
-        2: forecast_vol = forecast_garch_annual, # one path forecast garch volatility
-        3: forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
-        4: realized_return = cond_return, # one path's realized return over t ~ t+n_count
-        5: realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
-        6: realized_vol_avg = realized_return_vol.mean() # avg of all paths'''
-
-	interval_dict = dict(day = 252, week = 52, month = 12)
-
-	if n_interval in interval_dict.keys():
-		n_interval = interval_dict[n_interval]
-	else:
-		raise ValueError("n_interval input is inappropriate")
+	start_date = pd.to_datetime(start_date)
 	
-	# 1) parameter estimation using arch library and 100x scaled return data
+	model = arch.arch_model(100 * daily_return, vol = 'garch', mean = 'zero')
+	fit = model.fit(first_obs = start_date, disp = "off")
+
+	omega = fit.params.loc['omega']
+	alpha = fit.params.loc['alpha[1]']
+	beta = fit.params.loc['beta[1]']
+	lt_mean = np.sqrt(252 * omega / (1 - alpha - beta) / 10000)
+
+	ret = np.zeros((n_days+1, n_paths))
+	ret[0] = daily_return[-1]
+
+	var_pred = np.zeros((n_days+1, n_paths))
+	var_pred[0] = (fit.conditional_volatility[-1] ** 2) / 10000
+
+	for i in range(n_days):
+
+		pred = omega / 10000 + alpha * ret[i] ** 2 + beta * var_pred[i]
+		var_pred[i+1] = pred
+		ret_pred = np.random.normal(0, np.sqrt(var_pred[i]))
+		ret[i+1] = ret_pred
+
+	var_pred = np.sqrt(252 * var_pred)
 	
-	arch_return = arch.arch_model(100 * df_return, vol = 'garch', mean = 'Zero')
+	return var_pred[n_days], {'params' : fit.params, 'lt_mean' : lt_mean}
 
-	if start_date == None:
-		res = arch_return.fit()
-
-	else:
-		start_date = pd.Timestamp(start_date)
-		res = arch_return.fit(first_obs = start_date)
-	
-	omega = res.params.loc['omega']
-	alpha = res.params.loc['alpha[1]'] # weight of latest variance at t
-	beta = res.params.loc['beta[1]'] # weight of cumulative beta weighted average variance up to t-1
-	gamma = 1 - alpha - beta # speed / weight of mean reversion to lt_var
-
-	if lt_volatility == None:
-		lt_var = omega / (1 - alpha - beta) / 10000 ## long_term average variance over corresponding interval (eg) daily var if daily returns)
-	
-	else:
-		lt_var = lt_volatility ** 2 / n_interval
-
-	today_return = df_return.iloc[-1]
-	today_return_var = today_return ** 2
-	today_garch_var = (res.conditional_volatility.iloc[-1]/100) ** 2
-	today_predicted_var = gamma * lt_var + alpha * today_return_var + beta * today_garch_var # predicted today for tomorrow variance
-
-	# 2) generating multiple conditional return and variance paths
-
-	cond_return = np.zeros((n_count, n_paths))
-	cond_return[0] = today_return
-
-	cond_var = np.zeros((n_count, n_paths))
-	cond_var[0] = today_predicted_var
-
-	cond_var_2 = np.zeros((n_count, n_paths))
-	cond_var_2[0] = today_predicted_var
-	for i in range(1, n_count): ### 1) deterministic garch model 안에서 stochastic 주가 process + 전날에 추정된 garch_predicted vol 사용
-
-		tomorrow_return = np.random.normal(0, np.sqrt(cond_var[i-1]))
-		tomorrow_predicted_var = gamma * lt_var + alpha * (tomorrow_return ** 2) + beta * cond_var[i-1] 
-		cond_return[i], cond_var[i] = tomorrow_return, tomorrow_predicted_var
-
-	# for i in range(1, n_count): ### 2) volatility stochastic process 로 아예 치환 (= 사실상 garch 에서 return process 를 stochastic 으로 상정하여 항 정리만 한 셈)
-
-	# 	tomorrow_predicted_var_2 = cond_var_2[i-1] + gamma * (lt_var - cond_var_2[i-1]) + alpha * np.sqrt(2) * cond_var_2[i-1] * np.random.normal(0, 1)
-	# 	cond_var_2[i] = tomorrow_predicted_var_2
-
-	# 3) annualizing for better view
-
-	today_garch_annual = res.conditional_volatility.iloc[-1] * np.sqrt(n_interval) / 100
-	forecast_garch_annual = np.sqrt(cond_var * n_interval)
-	# forecast_garch_annual_2 = np.sqrt(cond_var_2 * n_interval)
-	realized_return_vol = np.sqrt(n_interval * sum(np.power(cond_return, 2)) / n_count)
-
-	result = dict(model_param = res.params, # params of garch model
-	today_garch_vol = today_garch_annual, # today's garch volatility 
-	forecast_vol = forecast_garch_annual, # one path forecast garch volatility
-	# forecast_vol_2 = forecast_garch_annual_2, # one path forecast garch volatility v2
-	realized_return = cond_return, # one path's realized return over t ~ t+n_count
-	realized_vol = realized_return_vol, # one path's aggregate volatility over t ~ t+n_count
-	realized_vol_avg = realized_return_vol.mean() # avg of all paths
-	)
-
-	return result
 
 def custom_cdf_function(daily_close_vol, target_x, start_x = None):
 
@@ -162,40 +98,6 @@ def reg_predict(train, test, predictors, target, model, n_estimators = 100, rand
 	mse = mean_squared_error(pred['actual'][:-1], pred['pred'][:-1])
 	
 	return pred, mse
-
-def recursive_ml(df_x, df_y, reg_model, n_days, n_paths = 1, test_size = None):
-
-	''' 바로 전날 데이터까지 학습'''
-	''' predicted value 는 그래서 바로 다음날꺼 하나'''
-
-	x_train = np.array(df_x.iloc[:-1])
-	x_test = np.array(df_x.iloc[-1]).reshape(1, -1)
-	y_train = np.array(df_y.iloc[:-1])
-	y_test = df_y.iloc[-1] # autoregression 에서 어짜피 y_test는 NA임
-
-	scalar = StandardScaler()
-	x_train = scalar.fit_transform(x_train)
-	x_test = scalar.transform(x_test)
-
-	# x_train, x_test, y_train, y_test = train_test_split(df_x, df_y, test_size, shuffle = False)
-
-	model_reg = reg_model()
-	
-	ret = []
-	vol = []
-
-	for i in n_days:
-		
-		model_reg.fit(x_train, y_train)
-		model_pred = model_reg.predict(x_test)
-
-		pred_vol = model_pred[-1]
-
-		tomorrow_return = np.random.normal(0, pred_vol)
-		ret.append(tomorrow_return)
-		vol.append(np.abs(tomorrow_return))
-
-
 
 
 def discrete_kelly(p_vector, outcome_vector):
