@@ -2,14 +2,6 @@ import pandas as pd
 import numpy as np
 import arch
 
-'''일수익률만 있어도 날짜조정해서 n일 누적수익률 구할 수 있음'''
-
-df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
-df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
-df_daily.index.name = 'date'
-df_daily.columns = ['open','high','low','close']
-
-
 # n days cumulative tables - loop
 
 class return_function:
@@ -24,14 +16,14 @@ class return_function:
             
         '''close : close_over_close / high : high_over_close / low : low_over_close / minmax : high - low / tr : true return (encompassing minmax + more)'''
             
-        high_high = self.df_price.rolling(window = n_days).max()['high']
-        low_low = self.df_price.rolling(window = n_days).min()['low']
+        high_high = self.df_price.rolling(window = n_days)['high'].max()
+        low_low = self.df_price.rolling(window = n_days)['low'].min()
         last_close = self.df_price['close'].shift(n_days)
 
         c_over_c = self.df_price['close'] / last_close - 1 # 1) 최종 종가대비 기준 종가
         h_over_c = high_high / last_close - 1 # 2) 기간 내 고가대비 기준 종가
         l_over_c = low_low / last_close - 1  # 3) 기간 내 저가대비 기준 종가
-        h_over_l = (high_high - low_low) / last_close - 1  # 기간 내 고가-저가대비 기준 종가
+        h_over_l = (high_high - low_low) / last_close  # 기간 내 고가-저가대비 기준 종가
         tr = pd.concat([np.abs(h_over_c), 
                         np.abs(l_over_c), 
                         h_over_l], axis = 1).max(axis = 1)  

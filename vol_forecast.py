@@ -65,12 +65,12 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+df = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
 df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
 
-df_vkospi = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
+df_vkospi = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
 df_vkospi = df_vkospi.sort_index(ascending = True)
 
 # %% vol function
