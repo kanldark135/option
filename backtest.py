@@ -4,21 +4,120 @@ Created on Thu Feb 16 23:36:21 2023
 
 @author: kanld
 """
-# %%
+# %% preprocessing
 
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # local database 에 접근해서 가격 불러오기
 
-monthly_path = "C:/Users/문희관/Desktop/option/data_pickle/monthly"
-weekly_path = "C:/Users/문희관/Desktop/option/data_pickle/weekly"
-kospi_path = "C:/Users/문희관/Desktop/option/data_pickle/주가"
+monthly_path = "C:/Users/kanld/Desktop/option/data_pickle/monthly"
+weekly_path = "C:/Users/kanld/Desktop/option/data_pickle/weekly"
+kospi_path = "C:/Users/kanld/Desktop/option/data_pickle/주가"
 
 df_monthly = pd.read_pickle(monthly_path)
 df_weekly = pd.read_pickle(weekly_path)
 df_kospi = pd.read_pickle(kospi_path)
+
+def find_closest_strike(x, interval = 2.5):
+    divided = divmod(x, interval)
+    if divided[1] >= 1.25: 
+        result = divided[0] * interval + interval
+    else:
+        result = divided[0] * interval
+    return result
+
+find_closest_strike = np.vectorize(find_closest_strike)
+
+# 만기당일은 종가 X, 행사가격으로 계산
+
+def value_at_exp(callput, s, k):
+    if callput == "c":
+        result = max(s - k, 0)
+    else:
+        result = max(k - s, 0)
+    return result
+
+# 근/차/그 외 월물 각각 labeling
+
+atm = df_kospi.assign(atm = find_closest_strike(df_kospi['close']))['atm']
+
+# 1) ATM 대비 Moneyness 표기
+
+df_c = df_monthly[df_monthly['cp']== "C"]
+df_c = df_c.merge(atm, how = 'inner', left_index = True, right_on = atm.index)
+df_c = df_c.assign(moneyness = df_c.strike - df_c.atm)
+
+df_p = df_monthly[df_monthly['cp']== "P"]
+df_p = df_p.merge(atm, how = 'inner', left_index = True, right_on = atm.index)
+df_p = df_p.assign(moneyness = df_p.atm - df_p.strike)
+
+# 2) 매 날짜별로 grouping 후 group 내에서 근/차물 식별하여 레이블링
+
+def grouping(df):
+    df['cycle'] = 0
+    df_grouped = df.groupby(by = df.index)
+
+    keys = df_grouped.groups.keys()
+
+    dummy_array = list()
+
+    for i in keys:
+        part_df = df_grouped.get_group(i)
+        exp_list = part_df.expiry.unique()
+
+        for j in part_df.itertuples():
+            if j.expiry == exp_list[0]:
+                dummy_array.append('front')
+            elif j.expiry == exp_list[1]:
+                dummy_array.append("back")
+            elif j.expiry == exp_list[2]:
+                dummy_array.append("backback")
+            else:
+                dummy_array.append("farther")
+        
+    df['cycle'] = dummy_array
+    
+    return df
+
+df_c = df_c.pipe(grouping).drop(columns = ['key_0'])
+df_p = df_p.pipe(grouping).drop(columns = ['key_0'])
+
+# 콜
+df_cv = df_c[df_c['title'] == '내재변동성']
+df_cp = df_c[df_c['title'] == '가격']
+
+# 풋
+df_pv = df_p[df_p['title'] == '내재변동성']
+df_pp = df_p[df_p['title'] == '가격']
+
+# %% 변동성 분석 툴
+
+import seaborn as sns
+
+# call
+
+df_civ = df_cv[(df_cv['moneyness'] > -10) & (df_cv['moneyness']< 40)]
+df_front_civ = df_civ[df_civ['cycle'] == 'front']
+df_back_civ = df_civ[df_civ['cycle'] == 'back']
+
+# ATM ~ 4OTM 지수
+
+df_civ_index = df_front_civ[(df_front_civ['moneyness'] >= 0) & ((df_front_civ['moneyness']) < 15) & (df_front_civ['dte']!= 1)]
+civ_index = df_civ_index.groupby(by = df_civ_index.index)['value'].mean()
+
+# 1) DTE-specific
+target_dte = 4
+front_civ_dte = df_front_civ[df_front_civ['dte'] == target_dte]
+back_civ_dte = df_back_civ[df_back_civ['dte'] == target_dte]
+
+# skewness 데이터
+
+# 
+
 
 # %%
 
@@ -59,78 +158,3 @@ df_kospi = pd.read_pickle(kospi_path)
 
 # n_dte = 35
 # expiry_table_n = df_monthly[df_monthly['dte'] == n_dte]['expiry'].drop_duplicates()
-
-# %% 
-
-def find_closest_strike(x, interval = 2.5):
-    divided = divmod(x, interval)
-    if divided[1] >= 1.25: 
-        result = divided[0] * interval + interval
-    else:
-        result = divided[0] * interval
-    return result
-
-find_closest_strike = np.vectorize(find_closest_strike)
-
-# 만기당일은 종가 X, 행사가격으로 계산
-
-def subtract(df_subtractor, df_subtracted):
-    for i in df_subtracted.iterrows():
-
-
-def value_at_exp(callput, s, k):
-    if callput == "c":
-        result = max(s - k, 0)
-    else:
-        result = max(k - s, 0)
-    return result
-
-# 근/차/그 외 월물 각각 labeling
-
-# 매 날짜별로 grouping 후 group 내에서 근/차물 식별하여 레이블링
-
-def grouping(df):
-    df['frontback'] = 0
-    df_grouped = df.groupby(by = df.index)
-
-    keys = df_grouped.groups.keys()
-
-    dummy_array = list()
-
-    for i in keys:
-        part_df = df_grouped.get_group(i)
-        exp_list = part_df.expiry.unique()
-
-        for j in part_df.itertuples():
-            if j.expiry == exp_list[0]:
-                dummy_array.append('front')
-            elif j.expiry == exp_list[1]:
-                dummy_array.append("back")
-            else:
-                dummy_array.append("further_back")
-        
-    df['frontback'] = dummy_array
-    
-    return df
-
-# ATM 대비 Moneyness 로 다시 표기
-
-df_c = df_monthly[(df_monthly['title'] == "종가") & (df_monthly['cp']== "C")]
-atm = df_kospi.assign(atm = find_closest_strike(df_kospi['close']))['atm']
-
-df_cc = df_c.merge(atm, how = 'inner', left_index = True, right_on = atm.index)
-df_cc.assign(moneyness = df_cc.strike - df_cc.atm)
-
-
-
-
-# %%
-
-
-week_data = df_weekly[(df_weekly['dte'] <= 8) & (df_weekly['title'] == '내재변동성')]
-
-aaa = df_main.join(week_data, how = 'inner', rsuffix = '_dummy')
-
-aaa = aaa[aaa['atm'].eq(aaa['strike'])]
-
-aaa.to_csv("C:/Users/문희관/Desktop/week.csv")
