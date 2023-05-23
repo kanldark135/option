@@ -8,15 +8,14 @@ Created on Thu Feb 16 23:36:21 2023
 
 import pandas as pd
 import numpy as np
-import os
+import function as myfunc
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 # local database 에 접근해서 가격 불러오기
 
-monthly_path = "C:/Users/문희관/Desktop/option/data_pickle/monthly"
-weekly_path = "C:/Users/문희관/Desktop/option/data_pickle/weekly"
-kospi_path = "C:/Users/문희관/Desktop/option/data_pickle/주가"
+monthly_path = "C:/Users/kanld/Desktop/option/data_pickle/monthly"
+weekly_path = "C:/Users/kanld/Desktop/option/data_pickle/weekly"
+kospi_path = "C:/Users/kanld/Desktop/option/data_pickle/주가"
 
 df_monthly = pd.read_pickle(monthly_path)
 df_weekly = pd.read_pickle(weekly_path)
@@ -43,30 +42,28 @@ def value_at_exp(callput, s, k):
 
 # 근/차/그 외 월물 각각 labeling
 
-atm = df_kospi.assign(atm = find_closest_strike(df_kospi['close']))['atm']
+df_append = df_kospi.assign(atm = find_closest_strike(df_kospi['close']))
 
 # 1) ATM 대비 Moneyness 표기
 
 df_c = df_monthly[df_monthly['cp']== "C"]
-df_c = df_c.merge(atm, how = 'inner', left_index = True, right_on = atm.index)
+df_c = df_c.merge(df_append, how = 'inner', left_index = True, right_on = df_append.index)
 df_c = df_c.assign(moneyness = df_c.strike - df_c.atm)
 
 df_p = df_monthly[df_monthly['cp']== "P"]
-df_p = df_p.merge(atm, how = 'inner', left_index = True, right_on = atm.index)
+df_p = df_p.merge(df_append, how = 'inner', left_index = True, right_on = df_append.index)
 df_p = df_p.assign(moneyness = df_p.atm - df_p.strike)
 
 # 2) 매 날짜별로 grouping 후 group 내에서 근/차물 식별하여 레이블링
 
 def grouping(df):
     df['cycle'] = 0
-    df_grouped = df.groupby(by = df.index)
-
-    keys = df_grouped.groups.keys()
-
+    grouped = df.groupby(by = df.index)
+    keys = grouped.groups.keys()
     dummy_array = list()
 
     for i in keys:
-        part_df = df_grouped.get_group(i)
+        part_df = grouped.get_group(i)
         exp_list = part_df.expiry.unique()
 
         for j in part_df.itertuples():
@@ -88,15 +85,16 @@ df_p = df_p.pipe(grouping).drop(columns = ['key_0'])
 
 # 콜
 df_cv = df_c[df_c['title'] == '내재변동성']
-df_cp = df_c[df_c['title'] == '가격']
+df_cp = df_c[df_c['title'] == '종가']
 
 # 풋
 df_pv = df_p[df_p['title'] == '내재변동성']
-df_pp = df_p[df_p['title'] == '가격']
+df_pp = df_p[df_p['title'] == '종가']
 
 # %% 변동성 분석 툴
 
 import seaborn as sns
+from sklearn.linear_model import LinearRegression
 
 # call
 
@@ -115,38 +113,33 @@ class call_vol:
         else:
             return [x]
 
-    def civ_front_index(self, moneyness_lb, moneyness_ub, remove_dte = [1]):
+    def civ_index(self, frontback = 'front', moneyness_lb = 0, moneyness_ub = 15, remove_dte = 1):
+
+        ''' 매일마다 lb~ub 까지의 내재변동성을 평균내서 점수화 => 별도의 모듈에서 PDF 그려서 확률 등등 구하기'''
 
         remove_dte = self._to_list(remove_dte)
-         
-        cond = {'cond1' : self.df_front_civ['moneyness'] >= moneyness_lb, 
-                'cond2' : self.df_front_civ['moneyness'] < moneyness_ub,
-                'cond3' : ~self.df_front_civ['dte'].isin(remove_dte)
+
+        if frontback == 'front':
+            df = self.df_front_civ
+        elif frontback == 'back':
+            df = self.df_back_civ
+        else:
+            df = self.df_civ
+        
+        cond = {'cond1' : df['moneyness'] >= moneyness_lb, 
+                'cond2' : df['moneyness'] < moneyness_ub,
+                'cond3' : ~df['dte'].isin(remove_dte)
                 }
-        front_index = self.df_front_civ[
+        df_cond = df[
         (cond['cond1'] & cond['cond2'] & cond['cond3'])
         ]
-        result = front_index.groupby(by = front_index.index)['value'].mean()
-        return result
-    
-    def civ_back_index(self, moneyness_lb, moneyness_ub, remove_dte = [1]):
 
-        remove_dte = self._to_list(remove_dte)
-    
-        cond = {'cond1' : self.df_back_civ['moneyness'] >= moneyness_lb, 
-                'cond2' : self.df_back_civ['moneyness'] < moneyness_ub,
-                'cond3' : ~self.df_back_civ['dte'].isin(remove_dte)
-                }
-        back_index = self.df_back_civ[
-        ((cond['cond1']) & (cond['cond2']) & (cond['cond3']))
-        ]
-    
-        result = back_index.groupby(by = back_index.index)['value'].mean()
+        result = df_cond.groupby(by = df_cond.index)['value'].mean().dropna()
         return result
     
     def civ_specific(self, moneyness, dte):
-        
-        # vectorize variables to fit them in isin(), although they are scalars
+
+        ''' 특정 Moneyness / 특정 DTE 시점에서 과거에 동일한 시점에는 어땠는지 골라서 보기 '''
 
         moneyness = self._to_list(moneyness)
         dte = self._to_list(dte)
@@ -156,23 +149,66 @@ class call_vol:
         }
 
         result = self.df_civ[(cond['cond_1']) & (cond['cond_2'])]
-        fig, ax = plt.subplots(1, 1)
-        
-        sns.catplot(data = result, x = 'moneyness', y = 'value', hue = result.index, ax = ax)
+
+        fig, axes = plt.subplots()
+
+        fig = sns.swarmplot(data = result, x = 'moneyness', y = 'value', ax = axes)
 
         return result, fig
     
-    ## 1) 동일만기내 skewness
+    def civ_skew(self, frontback = 'front', moneyness_lb = 0, moneyness_ub = 20, remove_dte = 1):
+
+        ''' lb ~ ub 까지의 내재변동성의 Skewness 를 지수화해서 보기. 지수화는 각각 linreg, 차이의 합, 비율의 합, 비율의 곱연산'''
+
+        if frontback == 'front':
+            df = self.df_front_civ
+        elif frontback == 'back':
+            df = self.df_back_civ
+        else:
+            df = self.df_civ
+        
+        remove_dte = self._to_list(remove_dte)
+
+        cond = {'cond1' : (df['moneyness'] >= moneyness_lb),
+                'cond2' : (df['moneyness'] <= moneyness_ub),
+                'cond3' : (~df['dte'].isin(remove_dte))}
+        
+        df_cond = df[cond.get('cond1') & cond.get('cond2') & cond.get('cond3')]
+
+        grouped = df_cond.groupby(by = df_cond.index)
+        
+        # 1) 일마다 lb ~ ub IV 의 회귀계수 구하는 nested function
+
+        def linreg(df):
+            X = df.moneyness.fillna(0).values
+            Y = 100 * df.value.fillna(0).values
+            reg = LinearRegression()
+            reg.fit(X.reshape(-1, 1), Y)
+
+            return reg.coef_
+        
+        reg = dict()
+        dif_sum = dict()
+        pct_sum = dict()
+        pct_prod = dict()
+
+        for date, i in grouped:
+            reg[date] = i.pipe(linreg) # 일마다 회귀계수
+            dif_sum[date] = (i.value - i.shift(1).value).sum() # 일마다 IV차이의 합
+            pct_sum[date] = i.value.pct_change(1).sum() # 일마다 IV 비율의 합
+            pct_prod[date] = (i.value.pct_change(1) + 1).prod()  #일마다 (IV 비율 + 1) 의 곱연산
+            
+        result = pd.DataFrame([reg, dif_sum, pct_sum, pct_prod]).T
+        result.columns = ['reg', 'dif_sum', 'pct_sum', 'pct_prod']
+        result.applymap(float)
+
+        return result
+
     # 2) 근-차월물간 IV 스프레드의 scoring 내지는 차트
 
-    tentative_merged = pd.merge(a.df_front_civ, a.df_back_civ, how = 'left', left_on = [a.df_front_civ.index, 'strike'], right_on = [a.df_back_civ.index, 'strike'])
-
-        
-    
-
-# skewness 데이터
-
-# 
+    # 1. one on one / front from back 뺄셈 후 전부 더하기
+    # 2. one on one / front over back 으로 비율 구해서 더하기
+    # 3. 위에 civ_index 의 차이로 갈음하기
 
 
 # %%

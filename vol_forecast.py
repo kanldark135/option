@@ -65,13 +65,13 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 # Loading the dataset
 
-df = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
-df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
-df_daily.index.name = 'date'
-df_daily.columns = ['open','high','low','close']
+# df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+# df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
+# df_daily.index.name = 'date'
+# df_daily.columns = ['open','high','low','close']
 
-df_vkospi = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
-df_vkospi = df_vkospi.sort_index(ascending = True)
+# df_vkospi = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
+# df_vkospi = df_vkospi.sort_index(ascending = True)
 
 # %% vol function
 
@@ -168,10 +168,6 @@ class vol_forecast:
 if __name__ == "__main__":
     
     a = vol_forecast(df_daily, 1)
-    a.status()
-    a.iv(df_vkospi)
-    a.sim_garch()
-
     b = vol_forecast(df_daily, 5)
     c = vol_forecast(df_daily, 10)
     d = vol_forecast(df_daily, 20)
@@ -180,8 +176,6 @@ if __name__ == "__main__":
 
     table_volscore = pd.DataFrame([a.status()[0], b.status()[0], c.status()[0], d.status()[0], e.status()[0], f.status()[0]], index = [1, 5, 10, 20, 30, 40])
     table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[1], e.status()[1], f.status()[1]], index = [1, 5, 10, 20, 30, 40])
-
-    
 
 #%% 
 
@@ -221,7 +215,7 @@ if __name__ == "__main__":
 # # %% 
 # # weekly anaylsis
 
-# # df_weekly = pd.read_excel("C:/Users/문희관/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
+# # df_weekly = pd.read_excel("C:/Users/kanld/Desktop/rawdata_230421.xlsx", sheet_name = "weekly_data", index_col = 0)
 # # df_weekly = df_weekly.sort_index(ascending = True)
 
 # # weekly_close = func.garch_process(df_weekly['close'], 2, n_interval = 'week', n_paths = 1000)
