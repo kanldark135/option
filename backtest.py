@@ -14,9 +14,9 @@ import seaborn as sns
 
 # local database 에 접근해서 가격 불러오기
 
-monthly_path = "C:/Users/kanld/Desktop/option/data_pickle/monthly"
-weekly_path = "C:/Users/kanld/Desktop/option/data_pickle/weekly"
-kospi_path = "C:/Users/kanld/Desktop/option/data_pickle/주가"
+monthly_path = "C:/Users/문희관/Desktop/option/data_pickle/monthly"
+weekly_path = "C:/Users/문희관/Desktop/option/data_pickle/weekly"
+kospi_path = "C:/Users/문희관/Desktop/option/data_pickle/주가"
 
 df_monthly = pd.read_pickle(monthly_path)
 df_weekly = pd.read_pickle(weekly_path)
@@ -100,19 +100,75 @@ import seaborn as sns
 
 # call
 
-df_civ = df_cv[(df_cv['moneyness'] > -10) & (df_cv['moneyness']< 40)]
-df_front_civ = df_civ[df_civ['cycle'] == 'front']
-df_back_civ = df_civ[df_civ['cycle'] == 'back']
+class call_vol:
 
-# ATM ~ 4OTM 지수
+    def __init__(self, df_cv):
 
-df_civ_index = df_front_civ[(df_front_civ['moneyness'] >= 0) & ((df_front_civ['moneyness']) < 15) & (df_front_civ['dte']!= 1)]
-civ_index = df_civ_index.groupby(by = df_civ_index.index)['value'].mean()
+        self.df_civ = df_cv[(df_cv['moneyness'] > -10) & (df_cv['moneyness']< 50)]  # 엥간치 필요할만한 구간만 추리기
 
-# 1) DTE-specific
-target_dte = 4
-front_civ_dte = df_front_civ[df_front_civ['dte'] == target_dte]
-back_civ_dte = df_back_civ[df_back_civ['dte'] == target_dte]
+        self.df_front_civ = self.df_civ[self.df_civ['cycle'] == 'front'] # 근월물
+        self.df_back_civ = self.df_civ[self.df_civ['cycle'] == 'back'] # 차월물
+
+    def _to_list(self, x):
+        if type(x) is list:
+            return x
+        else:
+            return [x]
+
+    def civ_front_index(self, moneyness_lb, moneyness_ub, remove_dte = [1]):
+
+        remove_dte = self._to_list(remove_dte)
+         
+        cond = {'cond1' : self.df_front_civ['moneyness'] >= moneyness_lb, 
+                'cond2' : self.df_front_civ['moneyness'] < moneyness_ub,
+                'cond3' : ~self.df_front_civ['dte'].isin(remove_dte)
+                }
+        front_index = self.df_front_civ[
+        (cond['cond1'] & cond['cond2'] & cond['cond3'])
+        ]
+        result = front_index.groupby(by = front_index.index)['value'].mean()
+        return result
+    
+    def civ_back_index(self, moneyness_lb, moneyness_ub, remove_dte = [1]):
+
+        remove_dte = self._to_list(remove_dte)
+    
+        cond = {'cond1' : self.df_back_civ['moneyness'] >= moneyness_lb, 
+                'cond2' : self.df_back_civ['moneyness'] < moneyness_ub,
+                'cond3' : ~self.df_back_civ['dte'].isin(remove_dte)
+                }
+        back_index = self.df_back_civ[
+        ((cond['cond1']) & (cond['cond2']) & (cond['cond3']))
+        ]
+    
+        result = back_index.groupby(by = back_index.index)['value'].mean()
+        return result
+    
+    def civ_specific(self, moneyness, dte):
+        
+        # vectorize variables to fit them in isin(), although they are scalars
+
+        moneyness = self._to_list(moneyness)
+        dte = self._to_list(dte)
+
+        cond = {'cond_1' : self.df_civ['moneyness'].isin(moneyness),
+                'cond_2' : self.df_civ['dte'].isin(dte)
+        }
+
+        result = self.df_civ[(cond['cond_1']) & (cond['cond_2'])]
+        fig, ax = plt.subplots(1, 1)
+        
+        sns.catplot(data = result, x = 'moneyness', y = 'value', hue = result.index, ax = ax)
+
+        return result, fig
+    
+    ## 1) 동일만기내 skewness
+    # 2) 근-차월물간 IV 스프레드의 scoring 내지는 차트
+
+    tentative_merged = pd.merge(a.df_front_civ, a.df_back_civ, how = 'left', left_on = [a.df_front_civ.index, 'strike'], right_on = [a.df_back_civ.index, 'strike'])
+
+        
+    
 
 # skewness 데이터
 
