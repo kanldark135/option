@@ -101,18 +101,6 @@ class vol_forecast:
         self.volscore_down = (self.ret_down.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_down.pipe(pre.volscore, price = 'low', n = annualizing_factor)) / 2
 
         self.dict = dict(total = self.volscore_total, up = self.volscore_up, down = self.volscore_down)
-    
-    def iv(self, df_vkospi):
-        
-        current = df_vkospi.iat[-1, 0]
-        
-        fig, ax = plt.subplots(1, 1)
-        ax.hist(df_vkospi, bins = np.linspace(0, 100, 500))
-        ax.axvline(current, linewidth = 2, color = 'b')
-        ax.text(5, 5, str(current))
-        p = myfunc.custom_cdf_function(df_vkospi['종가'], current)
-
-        return fig, p
 
     def status(self, avg_days = 5):
 
@@ -143,7 +131,7 @@ class vol_forecast:
 
         return current_vol, current_p, self.fig_1
     
-    def sim_garch(self, n_days = 6):
+    def forecast_garch(self, n_days = 6):
         
         fig, ax = plt.subplots(1, 1)
 
@@ -158,24 +146,23 @@ class vol_forecast:
 
         return fig, result
     
-    def forecast_ml_reg(self):
+    def forecast_ml(self):
         print("to be written")
 
     def final_probability(self):
         print('to be written')
-    
 
-if __name__ == "__main__":
+def iv(self, df_vkospi):
     
-    a = vol_forecast(df_daily, 1)
-    b = vol_forecast(df_daily, 5)
-    c = vol_forecast(df_daily, 10)
-    d = vol_forecast(df_daily, 20)
-    e = vol_forecast(df_daily, 30)
-    f = vol_forecast(df_daily, 40)
+    current = df_vkospi.iat[-1, 0]
+    
+    fig, ax = plt.subplots(1, 1)
+    ax.hist(df_vkospi, bins = np.linspace(0, 100, 500))
+    ax.axvline(current, linewidth = 2, color = 'b')
+    ax.text(5, 5, str(current))
+    p = myfunc.custom_cdf_function(df_vkospi['종가'], current)
 
-    table_volscore = pd.DataFrame([a.status()[0], b.status()[0], c.status()[0], d.status()[0], e.status()[0], f.status()[0]], index = [1, 5, 10, 20, 30, 40])
-    table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[1], e.status()[1], f.status()[1]], index = [1, 5, 10, 20, 30, 40])
+    return fig, p
 
 #%% 
 

@@ -66,40 +66,6 @@ def custom_cdf_function(daily_close_vol, target_x, start_x = None):
 		
 	return compute_p
 
-# xs = np.linspace(min(daily_close_vol), max(daily_close_vol), 1000)
-# ys = pdf(xs)
-# fig, ax = plt.subplots()
-# ax.plot(xs, ys)
-# return fig
-
-def reg_predict(train, test, predictors, target, model, n_estimators = 100, random_state = 0):
-	
-	''' You must have completed preprocessing dataset into train, test with relavant fit/format
-	1) divide dataset into train, test(validation)
-
-	manually generate x_train, x_test, y_train, y_test or 
-	x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size = %)
-	
-	2) scale, fit and transform
-	
-	either manually fit and transform outside the function or
-	use sklearn.preprocessing.StandardScaler/.... => scaler = StandardScaler() and scaler.fit_transform(x_train / x_test)'''
-	
-	model = model()
-
-	model.fit(train[predictors], train[target])
-
-	pred = model.predict(test[predictors])
-
-	pred = pd.DataFrame(pred, index = test.index)
-	pred = pd.concat([pred, test[target]], axis = 1)
-	pred.columns = ['pred', 'actual']
-	
-	mse = mean_squared_error(pred['actual'][:-1], pred['pred'][:-1])
-	
-	return pred, mse
-
-
 def discrete_kelly(p_vector, outcome_vector):
 	
 	p_vector = np.array(p_vector)
@@ -116,7 +82,6 @@ def discrete_kelly(p_vector, outcome_vector):
 	
 	return ratio, expected_return
 
-
 def continuous_kelly(mean, stdev):
 	
 	# 2 order taylor approximation
@@ -130,7 +95,6 @@ def continuous_kelly(mean, stdev):
 	asymmetrical_dist = symmetrical_dist + (lambda_3 * mean ** 2) / ((mean **2 + stdev **2) **2)
 	
 	return symmetrical_dist, asymmetrical_dist
-
 
 def fraction_of_kelly(kelly_ratio, mean, stdev):
 	
