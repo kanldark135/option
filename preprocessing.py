@@ -63,7 +63,7 @@ class return_function:
 
 
 def volscore(df_return, price = 'close', n = 252): ## 상기 close/ high / low / tr 컬럼 구조 그대로 따른다는 가정, df_return 은 daily
-    ''' kwarg = 'close', 'high', ' low, 'tr' '''
+    ''' price = 'close', 'high', ' low, 'tr' '''
     ''' n = annualizing factor = must be chosen according to df_return interval'''
 
     if price not in ['close', 'high', 'low', 'tr']:
