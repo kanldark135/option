@@ -5,7 +5,7 @@ Created on Fri Jan 20 12:18:39 2023
 @author: Kwan
 """
 
-import option
+import basic_calc
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -28,8 +28,8 @@ iv_back_month = back_month[['call_iv', 'put_iv']]
 ## dictionary of functions that I would constantly refer to
 
 tenor_df = {1 : iv_weekly, 2 : iv_front_month, 3: iv_back_month}
-call_function = {'price': option.call_p, 'delta': option.call_delta, 'theta': option.call_theta, 'vega': option.vega, 'gamma': option.gamma}
-put_function = {'price': option.put_p, 'delta': option.put_delta, 'theta': option.put_theta, 'vega': option.vega, 'gamma': option.gamma}
+call_function = {'price': basic_calc.call_p, 'delta': basic_calc.call_delta, 'theta': basic_calc.call_theta, 'vega': basic_calc.vega, 'gamma': basic_calc.gamma}
+put_function = {'price': basic_calc.put_p, 'delta': basic_calc.put_delta, 'theta': basic_calc.put_theta, 'vega': basic_calc.vega, 'gamma': basic_calc.gamma}
 
 
 # 개별옵션의 IV 의 변화 Breakdown
