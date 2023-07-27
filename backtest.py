@@ -109,7 +109,7 @@ class vol_backtest:
 
     def iv_index(self, frontback = 'front', moneyness_lb = 0, moneyness_ub = 15, remove_dte = 1):
 
-        ''' 매일마다 lb~ub 까지의 내재변동성을 평균내서 점수화 => 별도의 모듈에서 PDF 그려서 확률 등등 구하기'''
+        ''' 매일마다 lb~ub 사이의 행사가격에 해당하는 내재변동성을 산술평균내서 점수화 => 별도의 모듈에서 PDF 그려서 확률 등등 구하기'''
 
         remove_dte = self._to_list(remove_dte)
 
