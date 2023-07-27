@@ -89,3 +89,17 @@ def volscore(df_return, price = 'close', n = 252): ## 상기 close/ high / low /
         result = (daily + ma5 + ma20 + wma_5 + wma_20 + ewma + garch) / 7
 
     return result.dropna()
+
+
+def frequency_table(df, ub, lb, days):
+
+    bins = np.linspace(ub, lb, 100)
+
+    freq_list = dict()
+
+    for i in range(days):
+        df_freq = df.value_counts(bins = bins)
+        freq_list[i] = df_freq
+
+    res = pd.DataFrame(freq_list)
+    return res

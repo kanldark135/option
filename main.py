@@ -8,7 +8,6 @@ import backtest as mybt
 import os
 
 local_user = 'kanld'
-
 path_xls = f"C:/Users/{local_user}/Desktop/"
 path = os.getcwd()
 path_pkl = path + "/data_pickle/"

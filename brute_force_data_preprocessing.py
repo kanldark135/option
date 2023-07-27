@@ -122,6 +122,3 @@ final = final.drop_duplicates()
 # pickle 파일로 다시 빼기
 final.to_pickle("C:/Users/문희관/Desktop/option/data_pickle/weekly.pkl")
 
-# %% k200
-
-
