@@ -5,16 +5,24 @@ import numpy as np
 import function as myfunc
 import forward_analysis.vol_forecast as myvf
 import backtest as mybt
+import os
+
+local_user = 'kanld'
+
+path_xls = f"C:/Users/{local_user}/Desktop/"
+path = os.getcwd()
+path_pkl = path + "/data_pickle/"
 
 # %% 
 # 실현변동성 관련 지표 (volscore / 현재 분포에 기반한 임의 추정 / 시계열기반 GARCH 예측 / 머신러닝 기반 예측)
 
-df_daily = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
+df_daily = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
 df_daily = df_daily.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
+df_daily.to_pickle(path_pkl + "/k200.pkl")
 
-df_vkospi = pd.read_excel("C:/Users/문희관/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
+df_vkospi = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
 df_vkospi = df_vkospi.sort_index(ascending = True)
 
 a = myvf.vol_forecast(df_daily, 1)
@@ -30,9 +38,9 @@ table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[
 
 #%% 내재변동성 관련
 
-monthly = "C:/Users/문희관/Desktop/option/data_pickle/monthly.pkl"
-weekly = "C:/Users/문희관/Desktop/option/data_pickle/weekly"
-kospi = "C:/Users/문희관/Desktop/option/data_pickle/주가"
+monthly = path_pkl + "/monthly.pkl"
+weekly = path_pkl + "/weekly.pkl"
+kospi = path_pkl + "/k200.pkl"
 
 df_monthly = pd.read_pickle(monthly)
 df_weekly = pd.read_pickle(weekly)
@@ -51,5 +59,3 @@ piv_skew = putv.iv_skew('front', 0, 20)
 
 civ_calendar = callv.iv_calendar(0, 20)
 piv_calendar = putv.iv_calendar(0, 20)
-
-
