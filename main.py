@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 import function as myfunc
-import forward_analysis.vol_forecast as myvf
+import vol_forecast as myvf
 import backtest as mybt
 import os
 

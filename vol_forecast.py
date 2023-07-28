@@ -8,7 +8,6 @@ import scipy.optimize as sopt
 import scipy.stats as sstat
 import arch
 import datetime as dt
-import preprocessing as pre
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -17,6 +16,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import LinearRegression
 from xgboost import XGBRegressor
 from sklearn.ensemble import RandomForestRegressor
+
+
 
 '''
 변동성 추정 Process
@@ -61,44 +62,34 @@ static 하게 "실제 현재까지 실현변동성" 과 관련된 지표들로 �
 
 '''
 
-# %% Daily volatility forecast
-
-# Loading the dataset
-
-# df = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
-# df_daily = df.iloc[:, 0:4].sort_index(ascending = True)
-# df_daily.index.name = 'date'
-# df_daily.columns = ['open','high','low','close']
-
-# df_vkospi = pd.read_excel("C:/Users/kanld/Desktop/종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
-# df_vkospi = df_vkospi.sort_index(ascending = True)
 
 # %% vol function
 
-class vol_forecast:
+class vol_forecast(myfunc.ohlc_return):
 
-    ''' df = raw daily price table from outer sources in OHLC format / processed by inner pre.return_function
+    ''' df = raw daily price table from outer sources in OHLC format / processed by inner myfunc.return_function
         interval = return horizon
         start_date = (optional) start_date'''
 
-    def __init__(self, df, interval, start_date = 0):
+    def __init__(self, df_daily, interval, start_date = 0):
+        
+        super().__init__(df_daily)
 
         self.start_date = pd.to_datetime(start_date)
         if start_date != 0:
-            self.df = df.sort_index(ascending = True).loc[df.index > self.start_date, :]
+            self.df = df_daily.sort_index(ascending = True).loc [df_daily.index > self.start_date, :]
         else:
-            self.df = df.sort_index(ascending = True)
+            self.df = df_daily.sort_index(ascending = True)
         
         self.interval = interval
         annualizing_factor = 252 / interval
 
-        ret_function = pre.return_function(self.df)
-        self.ret_total = ret_function.total_return(interval)
-        self.volscore_total = (self.ret_total.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_total.pipe(pre.volscore, price = 'tr', n = annualizing_factor)) / 2
-        self.ret_up = ret_function.plus_return(interval)
-        self.volscore_up = (self.ret_up.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_up.pipe(pre.volscore, price = 'high', n = annualizing_factor)) / 2
-        self.ret_down = ret_function.minus_return(interval)
-        self.volscore_down = (self.ret_down.pipe(pre.volscore, price = 'close', n = annualizing_factor) + self.ret_down.pipe(pre.volscore, price = 'low', n = annualizing_factor)) / 2
+        self.ret_total = self.total_return(interval)
+        self.volscore_total = (self.ret_total.pipe(myfunc.volscore, price = 'close', n = annualizing_factor) + self.ret_total.pipe(myfunc.volscore, price = 'tr', n = annualizing_factor)) / 2
+        self.ret_up = self.plus_return(interval)
+        self.volscore_up = (self.ret_up.pipe(myfunc.volscore, price = 'close', n = annualizing_factor) + self.ret_up.pipe(myfunc.volscore, price = 'high', n = annualizing_factor)) / 2
+        self.ret_down = self.minus_return(interval)
+        self.volscore_down = (self.ret_down.pipe(myfunc.volscore, price = 'close', n = annualizing_factor) + self.ret_down.pipe(myfunc.volscore, price = 'low', n = annualizing_factor)) / 2
 
         self.dict = dict(total = self.volscore_total, up = self.volscore_up, down = self.volscore_down)
     
@@ -152,7 +143,7 @@ class vol_forecast:
     def final_probability(self):
         print('to be written')
 
-def iv(self, df_vkospi):
+def iv(df_vkospi):
     
     current = df_vkospi.iat[-1, 0]
     
@@ -173,9 +164,9 @@ def iv(self, df_vkospi):
 # # Y : 다음날 close vol (close_vol.shift(-1))
 
 # predictors = ['close', 'tr', 'volscore']
-# df_x = df_daily[predictors]
+# df_x = df_price[predictors]
 # df_x.update(np.abs(df_x))
-# df_y = np.abs(df_daily['close']).shift(-1)
+# df_y = np.abs df_price['close']).shift(-1)
 
 # x_train, x_test, y_train, y_test = train_test_split(df_x, df_y, test_size = 0.01, shuffle = False)
 
@@ -196,8 +187,8 @@ def iv(self, df_vkospi):
 
 
 
-# # daily_vol_tr = np.sqrt(df_daily['TR'] ** 2) * np.sqrt(252)
-# # normal_tr = func.garch_process(df_daily['TR'], 7, n_interval = 'day', n_paths = 1000)
+# # daily_vol_tr = np.sqrt df_price['TR'] ** 2) * np.sqrt(252)
+# # normal_tr = func.garch_process df_price['TR'], 7, n_interval = 'day', n_paths = 1000)
 
 # # %% 
 # # weekly anaylsis
