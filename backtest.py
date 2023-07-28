@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 16 23:36:21 2023
-
-@author: kanld
-"""
 # %% preprocessing
 
 import pandas as pd
