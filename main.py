@@ -45,7 +45,8 @@ df_monthly = pd.read_pickle(monthly)
 df_weekly = pd.read_pickle(weekly)
 df_kospi = pd.read_pickle(kospi)
 
-df_cv, df_cp, df_pv, df_pp = mybt.preprocessing(df_monthly, df_kospi)
+df_cv, df_cp, df_pv, df_pp = mybt.preprocessing(df_monthly, df_kospi) # raw option iv / option prices
+df_cvw, df_cpw, df_pvw, df_ppw = mybt.preprocessing(df_weekly, df_kospi) # raw option iv / option prices
 
 callv = mybt.vol_backtest(df_cv)
 putv = mybt.vol_backtest(df_pv)
