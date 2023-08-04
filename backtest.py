@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import function as myfunc
 import matplotlib.pyplot as plt
+from io import StringIO
+from csv import writer
+
 
 # local database 에 접근해서 가격 불러오기
 
@@ -164,31 +167,24 @@ class vol_backtest:
         
         # 일마다 lb ~ ub IV 의 회귀계수 구하는 nested function
 
-        def linreg(df):
-            X = df.moneyness.fillna(0).values
-            Y = 100 * df.value.fillna(0).values
-            reg = LinearRegression()
-            reg.fit(X.reshape(-1, 1), Y)
+        col = [i * 2.5 for i in range(int((moneyness_ub + 2.5)/ 2.5))]
 
-            return reg.coef_
-        
         reg = dict()
-        dif_sum = dict()
-        pct_sum = dict()
-        pct_prod = dict()
+        chg_over_atm = pd.DataFrame(columns = col)
+        dif_over_atm = pd.DataFrame(columns = col)
 
         for date, i in grouped:
-            i = i.sort_values('moneyness')
-            reg[date] = i.pipe(linreg) # 일마다 회귀계수
-            dif_sum[date] = (i.value - i.shift(1).value).sum() # 일마다 IV차이의 합
-            pct_sum[date] = i.value.pct_change(1).sum() # 일마다 IV 비율의 합
-            pct_prod[date] = (i.value.pct_change(1) + 1).prod()  #일마다 (IV 비율 + 1) 의 곱연산
-            
-        result = pd.DataFrame([reg, dif_sum, pct_sum, pct_prod]).T
-        result.columns = ['reg', 'dif_sum', 'pct_sum', 'pct_prod']
-        result = result.applymap(float)
 
-        return result
+            atm = i[i['moneyness'] == 0]['value'].squeeze()
+
+            i = pd.pivot_table(i, values = 'value', columns = 'moneyness', index = date).reindex(columns = col)
+            dif = i.value - atm # atm 대비 각 행사가의 IV 의 차이
+            chg = i.value / atm - 1  # atm 대비 각 행사가의 IV의 비율
+            
+        skew_chg = pd.concat([chg_over_atm, chg], axis = 0)
+        skew_dif = pd.DataFrame([dif_over_atm, chg] axis = 0)
+
+        return skew_chg, skew_dif
 
     def iv_calendar(self, moneyness_lb = 0, moneyness_ub = 20, remove_dte = 1):
 
