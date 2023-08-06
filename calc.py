@@ -12,76 +12,145 @@ import scipy.optimize as sciop
     
 def call_p(s, k, v, t, r):
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    N_d1 = scistat.norm.cdf(d1)
-    d2 = d1 - v * np.sqrt(t)
-    N_d2 = scistat.norm.cdf(d2)
+    try:
     
-    price = s * N_d1 - k * np.exp(-r * t) * N_d2
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        N_d1 = scistat.norm.cdf(d1)
+        d2 = d1 - v * np.sqrt(t)
+        N_d2 = scistat.norm.cdf(d2)
+        
+        price = s * N_d1 - k * np.exp(-r * t) * N_d2
     
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            price = np.nan
+        else:
+            raise e
+        
     return price
 
 def put_p(s, k, v, t, r):
+
+    try:
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    N_d1 = scistat.norm.cdf(d1)
-    d2 = d1 - v * np.sqrt(t)
-    N_d2 = scistat.norm.cdf(d2)
-    
-    price = k * np.exp(-r * t) * (1 - N_d2) - s * (1 - N_d1)
-    
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        N_d1 = scistat.norm.cdf(d1)
+        d2 = d1 - v * np.sqrt(t)
+        N_d2 = scistat.norm.cdf(d2)
+        
+        price = k * np.exp(-r * t) * (1 - N_d2) - s * (1 - N_d1)
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            price = np.nan
+        else:
+            raise e
+        
     return price
 
 def call_delta(s, k, v, t, r):
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    N_d1 = scistat.norm.cdf(d1)
+    try:
     
-    return N_d1
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        N_d1 = scistat.norm.cdf(d1)
 
+        delta = N_d1
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            delta = np.nan
+        else:
+            raise e
+        
+    return delta
+    
 def put_delta(s, k, v, t, r):
+
+    try:
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    N_d1 = scistat.norm.cdf(d1)
-    
-    return - (1 - N_d1)
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        N_d1 = scistat.norm.cdf(d1)
+
+        delta = - (1 - N_d1)
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            delta = np.nan
+        else:
+            raise e
+        
+    return delta
+
 
 def gamma(s, k, v, t, r):
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    n_d1 = scistat.norm.pdf(d1)
-    
-    gamma = n_d1 / (s * v * np.sqrt(t))
-    
+    try: 
+
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        n_d1 = scistat.norm.pdf(d1)
+        
+        gamma = n_d1 / (s * v * np.sqrt(t))
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            gamma = np.nan
+        else:
+            raise e
+        
     return gamma
 
 def vega(s, k, v, t, r):
+
+    try:
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    n_d1 = scistat.norm.pdf(d1)
-    
-    vega = (s * np.sqrt(t) * n_d1)/100
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        n_d1 = scistat.norm.pdf(d1)
+        
+        vega = (s * np.sqrt(t) * n_d1)/100
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            vega = np.nan
+        else:
+            raise e
     
     return vega
     
 def call_theta(s, k, v, t, r):
+
+    try:
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    d2 = d1 - v * np.sqrt(t)
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        d2 = d1 - v * np.sqrt(t)
+        
+        theta = - (s * v * scistat.norm.pdf(d1) / (2 * np.sqrt(t))) - (r * k * np.exp(-r * t) * scistat.norm.cdf(d2))
+        call_theta = theta/365
     
-    theta = - (s * v * scistat.norm.pdf(d1) / (2 * np.sqrt(t))) - (r * k * np.exp(-r * t) * scistat.norm.cdf(d2))
-    call_theta = theta/365
-    
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            call_theta = np.nan
+        else:
+            raise e
+
     return call_theta
 
 def put_theta(s, k, v, t, r):
+
+    try:
     
-    d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
-    d2 = d1 - v * np.sqrt(t)
-    
-    theta = - (s * v * scistat.norm.pdf(d1) / (2 * np.sqrt(t))) + (r * k * np.exp(-r * t) * scistat.norm.cdf(-d2))
-    put_theta = theta/365
-    
+        d1 = (np.log(s / k) + (r + np.power(v, 2)/2) * t) / (v * np.sqrt(t))
+        d2 = d1 - v * np.sqrt(t)
+        
+        theta = - (s * v * scistat.norm.pdf(d1) / (2 * np.sqrt(t))) + (r * k * np.exp(-r * t) * scistat.norm.cdf(-d2))
+        put_theta = theta/365
+
+    except TypeError as e:
+        if any(np.isnan([s, k, v, t, r])):
+            put_theta = np.nan
+        else:
+            raise e
+        
     return put_theta
     
     

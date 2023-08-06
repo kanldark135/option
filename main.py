@@ -37,25 +37,12 @@ table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[
 
 #%% 내재변동성 관련
 
-monthly = path_pkl + "/monthly.pkl"
-weekly = path_pkl + "/weekly.pkl"
-kospi = path_pkl + "/k200.pkl"
 
-df_monthly = pd.read_pickle(monthly)
-df_weekly = pd.read_pickle(weekly)
-df_kospi = pd.read_pickle(kospi)
+call = mybt.backtest('monthly', 'call')
+put = mybt.backtest('monthly', 'put')
 
-df_cv, df_cp, df_pv, df_pp = mybt.preprocessing(df_monthly, df_kospi) # raw option iv / option prices
-df_cvw, df_cpw, df_pvw, df_ppw = mybt.preprocessing(df_weekly, df_kospi) # raw option iv / option prices
+call_front = call.matrix()
+call_back = call.matrix(frontback = 'back')
 
-callv = mybt.vol_backtest(df_cv)
-putv = mybt.vol_backtest(df_pv)
-
-civ_index = callv.iv_index('front', 0, 20)
-piv_index = putv.iv_index('front', 0, 20)
-
-civ_skew = callv.iv_skew('front', 0, 20)
-piv_skew = putv.iv_skew('front', 0, 20)
-
-civ_calendar = callv.iv_calendar(0, 20)
-piv_calendar = putv.iv_calendar(0, 20)
+put_front = put.matrix()
+put_back = put.matrix(frontback = 'back')
