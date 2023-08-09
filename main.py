@@ -15,13 +15,13 @@ path_pkl = path + "/data_pickle/"
 # %% 
 # 실현변동성 관련 지표 (volscore / 현재 분포에 기반한 임의 추정 / 시계열기반 GARCH 예측 / 머신러닝 기반 예측)
 
-df_daily = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'datav', index_col = 0, usecols = 'E:AC').dropna()
+df_daily = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'E:AC').dropna()
 df_daily = df_daily.iloc[:, 0:4].sort_index(ascending = True)
 df_daily.index.name = 'date'
 df_daily.columns = ['open','high','low','close']
 df_daily.to_pickle(path_pkl + "/k200.pkl")
 
-df_vkospi = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'datav', index_col = 0, usecols = 'A:B').dropna()
+df_vkospi = pd.read_excel(path_xls + "종합.xlsx", sheet_name = 'data', index_col = 0, usecols = 'A:B').dropna()
 df_vkospi = df_vkospi.sort_index(ascending = True)
 
 a = myvf.vol_forecast(df_daily, 1)
@@ -37,11 +37,15 @@ table_p = pd.DataFrame([a.status()[1], b.status()[1], c.status()[1], d.status()[
 
 #%% 내재변동성 관련
 
-bt_class = bt.backtest('monthly', 'put')
+monthly = bt.backtest('monthly', 'call')
+moneyness_ub = 0
+moneyness_lb = 45
 
 atm = 0.14
 
-datav = bt_class.iv_data()
+# 순전히 raw 데이터테이블
+
+datav = monthly.iv_data(moneyness_ub, moneyness_lb)
 
 df_front = datav['front']
 df_back = datav['back']
@@ -49,13 +53,14 @@ df_fskew = datav['fskew']
 df_bskew = datav['bskew']
 df_term = datav['term']
 
-report = bt_class.iv_analysis(atm = atm, quantile = 0.1)
-front = report['front']
-back = report['back']
-fskew = report['fskew']
-bskew = report['bskew']
-term = report['term']
+# 각 테이블에 대한 descriptive stats
 
+report = monthly.iv_analysis(moneyness_ub, moneyness_lb, atm = atm, quantile = 0.1)
+front = report['front'].to_csv("./front.csv")
+back = report['back'].to_csv("./back.csv")
+fskew = report['fskew'].to_csv("./fskew.csv")
+bskew = report['bskew'].to_csv("./bskew.csv")
+term = report['term'].to_csv("./term.csv")
 
 
 # %%

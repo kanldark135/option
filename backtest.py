@@ -97,7 +97,7 @@ class backtest:
         
         return res
     
-    def iv_analysis(self, moneyness_lb = 0, moneyness_ub = 30, quantile = 0.5, atm = None, dte = None, remove_dte = [1,2,3,4,5,6,7]):
+    def iv_analysis(self, moneyness_lb = 0, moneyness_ub = 30, atm = None, dte = None, remove_dte = [1,2,3,4,5,6,7]):
 
         '''유사 atm IV 수준만 골라서 비교하려면 atm 에 값 기록'''
         ''''''
@@ -117,6 +117,9 @@ class backtest:
 
             stats = df.describe()
 
+            # if atm is specified, then only select statistics around similar atm level
+            # likewise, create a section for specified dte stats (is it really necessary though?)
+
             def similar_atm(df, atm, buffer = 0.1):
                 cond_1 = df['atm'] > atm - buffer
                 cond_2 = df['atm'] < atm + buffer
@@ -129,8 +132,13 @@ class backtest:
             else:
                 pass
         
-            dummy = df.apply(lambda x : np.quantile(x, quantile)).to_frame(quantile).T
-            stats = pd.concat([stats, dummy])
+            dummy_list = []
+
+            for i in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+                dummy = df.apply(lambda x : np.quantile(x, i)).to_frame(i).T
+                dummy_list.append(dummy)
+            
+            stats = pd.concat([stats, *dummy_list])
 
             res[key] = stats
 
