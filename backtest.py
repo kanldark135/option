@@ -73,7 +73,7 @@ class backtest:
         front_skew = cut_front.pipe(np.divide, cut_front[[0]])\
             .interpolate(methods = 'polynomial', order = 2, axis = 1)\
             .combine_first(df_front)
-        back_skew = cut_back.pipe(np.divide, df_back[[0]])\
+        back_skew = cut_back.pipe(np.divide, cut_back[[0]])\
             .interpolate(methods = 'polynomial', order = 2, axis = 1)\
             .combine_first(df_back)
 
@@ -136,20 +136,28 @@ class backtest:
 
         return res
 
+## 이제 할 거
+
+# 위클리 pickle 업데이트 하기
+# 특정 dte / 특정 
+# 전반적으로 좀 더 보기 쉽게 만들기
+
+# 가격테이블 가져오면서 backtesting 툴 만들기
+
 # %%
 
-import backtest as bt
+# import backtest as bt
 
-a = bt.backtest()
+# a = bt.backtest()
 
-data = a.iv_data()
+# data = a.iv_data()
 
-front = data['front']
-back = data['back']
-fskew = data['fskew']
-bskew = data['bskew']
-term = data['term']
+# front = data['front']
+# back = data['back']
+# fskew = data['fskew']
+# bskew = data['bskew']
+# term = data['term']
 
-report = a.iv_analysis(quantile = 0.1)
+# report = a.iv_analysis(quantile = 0.1)
 
 # %%
